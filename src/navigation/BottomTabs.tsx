@@ -25,6 +25,8 @@ export const BottomTabs = () => {
                     height: 85,
                     paddingTop: 8,
                     paddingBottom: 28,
+                    borderTopLeftRadius: 24,
+                    borderTopRightRadius: 24,
                     ...shadows.glassStrong,
                 },
                 tabBarBackground: () => (
@@ -75,6 +77,8 @@ const styles = StyleSheet.create({
     tabBarBackground: {
         ...StyleSheet.absoluteFillObject,
         overflow: 'hidden',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
     },
     topBorder: {
         position: 'absolute',

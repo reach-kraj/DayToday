@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, PanResponder } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+
 import { colors, spacing, typography, shadows } from '../theme';
+
 
 interface ModernCalendarProps {
     selectedDate: string;
     onDateSelect: (date: string) => void;
     markedDates?: { [key: string]: any };
 }
+
+
 
 export const ModernCalendar: React.FC<ModernCalendarProps> = ({ selectedDate, onDateSelect, markedDates = {} }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
@@ -53,8 +56,12 @@ export const ModernCalendar: React.FC<ModernCalendarProps> = ({ selectedDate, on
     const handleDayPress = (day: number) => {
         const year = currentMonth.getFullYear();
         const month = currentMonth.getMonth();
+        // Create date using local time to avoid timezone issues with ISO string
         const date = new Date(year, month, day);
-        const dateString = date.toISOString().split('T')[0];
+        // Adjust for timezone offset to get correct YYYY-MM-DD
+        const offset = date.getTimezoneOffset() * 60000;
+        const localDate = new Date(date.getTime() - offset);
+        const dateString = localDate.toISOString().split('T')[0];
         onDateSelect(dateString);
     };
 
@@ -71,49 +78,61 @@ export const ModernCalendar: React.FC<ModernCalendarProps> = ({ selectedDate, on
         const year = currentMonth.getFullYear();
         const month = currentMonth.getMonth();
         const date = new Date(year, month, day);
-        const dateString = date.toISOString().split('T')[0];
+        const offset = date.getTimezoneOffset() * 60000;
+        const localDate = new Date(date.getTime() - offset);
+        const dateString = localDate.toISOString().split('T')[0];
         return dateString === selectedDate;
-    };
-
-    const isWeekend = (dayIndex: number) => {
-        return dayIndex >= 5; // Saturday and Sunday
     };
 
     const hasMarker = (day: number) => {
         const year = currentMonth.getFullYear();
         const month = currentMonth.getMonth();
         const date = new Date(year, month, day);
-        const dateString = date.toISOString().split('T')[0];
+        const offset = date.getTimezoneOffset() * 60000;
+        const localDate = new Date(date.getTime() - offset);
+        const dateString = localDate.toISOString().split('T')[0];
         return markedDates[dateString]?.marked;
     };
 
     const days = getDaysInMonth(currentMonth);
 
+    const panResponder = React.useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: (_, gestureState) => {
+                // Only capture horizontal swipes
+                return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
+            },
+            onPanResponderRelease: (_, gestureState) => {
+                if (gestureState.dx > 50) {
+                    handlePrevMonth();
+                } else if (gestureState.dx < -50) {
+                    handleNextMonth();
+                }
+            },
+        })
+    ).current;
+
     return (
-        <View style={styles.container}>
+        <View style={styles.container} {...panResponder.panHandlers}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={handlePrevMonth} style={styles.navButton}>
-                    <Ionicons name="chevron-back" size={24} color={colors.textOnGlass} />
+                <TouchableOpacity onPress={handlePrevMonth} style={styles.navButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <Ionicons name="chevron-back" size={20} color={colors.textOnGlass} />
                 </TouchableOpacity>
                 
                 <Text style={styles.monthYear}>{formatMonthYear(currentMonth)}</Text>
                 
-                <TouchableOpacity onPress={handleNextMonth} style={styles.navButton}>
-                    <Ionicons name="chevron-forward" size={24} color={colors.textOnGlass} />
+                <TouchableOpacity onPress={handleNextMonth} style={styles.navButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textOnGlass} />
                 </TouchableOpacity>
             </View>
 
             {/* Days of week */}
             <View style={styles.daysOfWeekContainer}>
-                {daysOfWeek.map((day, index) => (
+                {daysOfWeek.map((day) => (
                     <View key={day} style={styles.dayOfWeekCell}>
-                        <Text style={[
-                            styles.dayOfWeekText,
-                            isWeekend(index) && styles.weekendText
-                        ]}>
-                            {day}
-                        </Text>
+                        <Text style={styles.dayOfWeekText}>{day}</Text>
                     </View>
                 ))}
             </View>
@@ -127,7 +146,6 @@ export const ModernCalendar: React.FC<ModernCalendarProps> = ({ selectedDate, on
 
                     const selected = isSelected(day);
                     const today = isToday(day);
-                    const weekend = isWeekend(index % 7);
                     const marked = hasMarker(day);
 
                     return (
@@ -138,25 +156,18 @@ export const ModernCalendar: React.FC<ModernCalendarProps> = ({ selectedDate, on
                             activeOpacity={0.7}
                         >
                             {selected ? (
-                                <View style={styles.selectedDayContainer}>
-                                    <LinearGradient
-                                        colors={[colors.primaryGradientStart, colors.primaryGradientEnd]}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 1 }}
-                                        style={styles.selectedDayGradient}
-                                    >
-                                        <Text style={styles.selectedDayText}>{day}</Text>
-                                    </LinearGradient>
+                                <View style={styles.selectedDayRing}>
+                                    <Text style={styles.selectedDayText}>{day}</Text>
+                                    {marked && <View style={[styles.marker, { backgroundColor: 'white' }]} />}
                                 </View>
                             ) : (
                                 <View style={[
-                                    styles.dayContainer,
-                                    today && styles.todayContainer,
+                                    styles.dayContent,
+                                    today && styles.todayContent
                                 ]}>
                                     <Text style={[
                                         styles.dayText,
-                                        today && styles.todayText,
-                                        weekend && styles.weekendDayText,
+                                        today && styles.todayText
                                     ]}>
                                         {day}
                                     </Text>
@@ -173,91 +184,101 @@ export const ModernCalendar: React.FC<ModernCalendarProps> = ({ selectedDate, on
 
 const styles = StyleSheet.create({
     container: {
-        padding: spacing.l,
+        padding: spacing.m,
+        width: '100%',
+        backgroundColor: colors.primary,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.25)',
+        ...shadows.medium,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: spacing.l,
+        paddingHorizontal: spacing.s,
     },
     navButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
     },
     monthYear: {
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: '700',
         color: colors.textOnGlass,
         letterSpacing: 0.5,
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     daysOfWeekContainer: {
         flexDirection: 'row',
-        marginBottom: spacing.m,
+        marginBottom: spacing.s,
     },
     dayOfWeekCell: {
-        flex: 1,
+        width: '14.28%',
         alignItems: 'center',
-        paddingVertical: spacing.s,
+        justifyContent: 'center',
+        paddingVertical: spacing.xs,
     },
     dayOfWeekText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: 'rgba(255, 255, 255, 0.7)',
-        letterSpacing: 0.5,
-    },
-    weekendText: {
-        color: 'rgba(255, 255, 255, 0.5)',
+        fontSize: 11,
+        fontWeight: '700',
+        color: 'rgba(255, 255, 255, 0.8)', // Increased opacity
+        textTransform: 'uppercase',
+        letterSpacing: 1,
     },
     calendarGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
     },
     dayCell: {
-        width: `${100 / 7}%`,
+        width: '14.28%',
         aspectRatio: 1,
-        padding: 4,
-    },
-    dayContainer: {
-        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 12,
+        marginBottom: 4,
     },
-    todayContainer: {
-        backgroundColor: 'rgba(255, 255, 255, 0.15)',
-        borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
-    },
-    selectedDayContainer: {
-        flex: 1,
-        borderRadius: 12,
-        overflow: 'hidden',
-        ...shadows.medium,
-    },
-    selectedDayGradient: {
-        flex: 1,
+    dayContent: {
+        width: 36,
+        height: 36,
         justifyContent: 'center',
         alignItems: 'center',
+        borderRadius: 18,
+    },
+    todayContent: {
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+    },
+    selectedDayRing: {
+        width: 36,
+        height: 36,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 18,
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
     dayText: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: colors.textOnGlass,
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#FFFFFF', // Full white for better visibility
     },
     todayText: {
         fontWeight: '700',
-        color: colors.textOnGlass,
-    },
-    weekendDayText: {
-        color: 'rgba(255, 255, 255, 0.5)',
+        color: '#FFFFFF',
     },
     selectedDayText: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '700',
         color: '#FFFFFF',
     },

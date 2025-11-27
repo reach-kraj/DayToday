@@ -17,6 +17,7 @@ export type Routine = {
     createdAt: string;
     startDate?: string;
     tags?: string[];
+    notificationType?: 'notification' | 'alarm';
 };
 
 export type DayTask = {
@@ -30,6 +31,8 @@ export type DayTask = {
     priority?: 'low' | 'medium' | 'high';
     estimatedMinutes?: number;
     metadata?: Record<string, any>;
+    reminderTime?: { hour: number; minute: number };
+    notificationType?: 'notification' | 'alarm';
 };
 
 type StoreState = {
@@ -48,6 +51,7 @@ type StoreState = {
     deleteTask: (taskId: string) => void;
     generateTasksForDateFromRoutines: (date: string) => void;
     setEndOfDayTime: (time: { hour: number; minute: number }) => void;
+    markAllTasksCompleted: (date: string) => void;
 };
 
 export const useStore = create<StoreState>()(
@@ -98,7 +102,24 @@ export const useStore = create<StoreState>()(
                 set((state) => {
                     const newRoutines = { ...state.routines };
                     delete newRoutines[id];
-                    return { routines: newRoutines };
+
+                    // Find all tasks associated with this routine
+                    const tasksToDelete = Object.values(state.tasks).filter(t => t.routineId === id);
+                    const taskIdsToDelete = tasksToDelete.map(t => t.id);
+
+                    const newTasks = { ...state.tasks };
+                    taskIdsToDelete.forEach(taskId => delete newTasks[taskId]);
+
+                    const newTasksByDate = { ...state.tasksByDate };
+                    Object.keys(newTasksByDate).forEach(date => {
+                        newTasksByDate[date] = newTasksByDate[date].filter(taskId => !taskIdsToDelete.includes(taskId));
+                    });
+
+                    return { 
+                        routines: newRoutines,
+                        tasks: newTasks,
+                        tasksByDate: newTasksByDate
+                    };
                 });
             },
 
@@ -207,6 +228,7 @@ export const useStore = create<StoreState>()(
                             time: routine.time,
                             completed: false,
                             createdAt: new Date().toISOString(),
+                            notificationType: routine.notificationType,
                         };
                         newTasks.push(newTask);
                         newTaskIds.push(id);
@@ -230,6 +252,27 @@ export const useStore = create<StoreState>()(
             },
 
             setEndOfDayTime: (time) => set({ endOfDayTime: time }),
+
+            markAllTasksCompleted: (date) => {
+                set((state) => {
+                    const taskIds = state.tasksByDate[date] || [];
+                    if (taskIds.length === 0) return state;
+
+                    const updatedTasks = { ...state.tasks };
+                    let hasChanges = false;
+
+                    taskIds.forEach(id => {
+                        if (updatedTasks[id] && !updatedTasks[id].completed) {
+                            updatedTasks[id] = { ...updatedTasks[id], completed: true };
+                            hasChanges = true;
+                        }
+                    });
+
+                    if (!hasChanges) return state;
+
+                    return { tasks: updatedTasks };
+                });
+            },
         }),
         {
             name: 'daytoday-storage',

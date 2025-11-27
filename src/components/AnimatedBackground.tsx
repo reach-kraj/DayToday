@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet, Animated, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme';
 
@@ -43,6 +43,11 @@ export const AnimatedBackground: React.FC<{ children: React.ReactNode }> = ({ ch
                     style={StyleSheet.absoluteFill}
                 />
             </Animated.View>
+            <Image 
+                source={require('../../assets/noise_texture.png')}
+                style={[StyleSheet.absoluteFill, { opacity: 0.05 }]}
+                resizeMode="repeat"
+            />
             {children}
         </View>
     );

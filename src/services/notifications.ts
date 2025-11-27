@@ -6,8 +6,32 @@ export async function registerForPushNotificationsAsync() {
 
     if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('default', {
-            name: 'default',
+            name: 'Default',
+            importance: Notifications.AndroidImportance.DEFAULT,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#FF231F7C',
+        });
+
+        await Notifications.setNotificationChannelAsync('alarms', {
+            name: 'Alarms',
             importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 500, 200, 500],
+            lightColor: '#FF231F7C',
+            sound: 'default', // Explicitly set sound
+            lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+            bypassDnd: true,
+        });
+
+        await Notifications.setNotificationChannelAsync('reminders', {
+            name: 'Reminders',
+            importance: Notifications.AndroidImportance.HIGH,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#FF231F7C',
+        });
+
+        await Notifications.setNotificationChannelAsync('end_of_day', {
+            name: 'End of Day Summary',
+            importance: Notifications.AndroidImportance.HIGH,
             vibrationPattern: [0, 250, 250, 250],
             lightColor: '#FF231F7C',
         });
