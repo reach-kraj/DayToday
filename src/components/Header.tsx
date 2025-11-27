@@ -24,13 +24,14 @@ const styles = StyleSheet.create({
     container: {
         paddingHorizontal: spacing.l,
         paddingVertical: spacing.m,
-        backgroundColor: colors.background,
+        backgroundColor: 'transparent',
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
     },
     title: {
         ...typography.h1,
+        color: '#5e27bce0',
     },
     subtitle: {
         ...typography.bodySmall,

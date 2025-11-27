@@ -3,12 +3,15 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl } 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Calendar, DateData } from 'react-native-calendars';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useStore } from '../store';
 import { Header } from '../components/Header';
 import { TaskCard } from '../components/TaskCard';
 import { AddTaskModal } from '../components/AddTaskModal';
 import { RoutineTimelineCard } from '../components/RoutineTimelineCard';
 import { RoutineStack } from '../components/RoutineStack';
+import { AnimatedBackground } from '../components/AnimatedBackground';
+import { GlassCard } from '../components/GlassCard';
 import { colors, spacing, typography, shadows } from '../theme';
 
 export const DashboardScreen = () => {
@@ -95,50 +98,51 @@ export const DashboardScreen = () => {
     });
 
     return (
-        <SafeAreaView style={styles.container}>
-            <Header
-                title="Dashboard"
-            />
+        <AnimatedBackground>
+            <SafeAreaView style={styles.container}>
+                <Header
+                    title="DayToday"
+                />
 
-            <ScrollView
-                contentContainerStyle={styles.content}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-                }
-            >
-                <View style={styles.calendarContainer}>
-                    <Calendar
-                        current={selectedDate}
-                        onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
-                        firstDay={1} // Monday start
-                        markedDates={markedDates}
-                        theme={{
-                            backgroundColor: colors.surface,
-                            calendarBackground: colors.surface,
-                            textSectionTitleColor: colors.textSecondary,
-                            selectedDayBackgroundColor: colors.primary,
-                            selectedDayTextColor: '#ffffff',
-                            todayTextColor: colors.primary,
-                            dayTextColor: colors.text,
-                            textDisabledColor: '#d9e1e8',
-                            dotColor: colors.primary,
-                            selectedDotColor: '#ffffff',
-                            arrowColor: colors.primary,
-                            monthTextColor: colors.text,
-                            indicatorColor: colors.primary,
-                            textDayFontFamily: 'System',
-                            textMonthFontFamily: 'System',
-                            textDayHeaderFontFamily: 'System',
-                            textDayFontWeight: '400',
-                            textMonthFontWeight: '600',
-                            textDayHeaderFontWeight: '400',
-                            textDayFontSize: 16,
-                            textMonthFontSize: 18,
-                            textDayHeaderFontSize: 13
-                        }}
-                        style={styles.calendar}
-                    />
-                </View>
+                <ScrollView
+                    contentContainerStyle={styles.content}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />
+                    }
+                >
+                    <View style={styles.calendarContainer}>
+                        <Calendar
+                            current={selectedDate}
+                            onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
+                            firstDay={1}
+                            markedDates={markedDates}
+                            theme={{
+                                backgroundColor: colors.surface,
+                                calendarBackground: colors.surface,
+                                textSectionTitleColor: colors.textSecondary,
+                                selectedDayBackgroundColor: colors.primary,
+                                selectedDayTextColor: '#ffffff',
+                                todayTextColor: colors.primary,
+                                dayTextColor: colors.text,
+                                textDisabledColor: '#d9e1e8',
+                                dotColor: colors.primary,
+                                selectedDotColor: '#ffffff',
+                                arrowColor: colors.primary,
+                                monthTextColor: colors.text,
+                                indicatorColor: colors.primary,
+                                textDayFontFamily: 'System',
+                                textMonthFontFamily: 'System',
+                                textDayHeaderFontFamily: 'System',
+                                textDayFontWeight: '400',
+                                textMonthFontWeight: '600',
+                                textDayHeaderFontWeight: '400',
+                                textDayFontSize: 16,
+                                textMonthFontSize: 18,
+                                textDayHeaderFontSize: 13
+                            }}
+                            style={styles.calendar}
+                        />
+                    </View>
 
                 {/* Routines Section */}
                 {(() => {
@@ -248,16 +252,18 @@ export const DashboardScreen = () => {
                 onAdd={(title) => createTaskForDay({ title, date: selectedDate })}
             />
         </SafeAreaView>
+        </AnimatedBackground>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: 'transparent',
     },
     content: {
         padding: spacing.l,
+        paddingBottom: 100,
     },
     calendarContainer: {
         borderRadius: 16,
