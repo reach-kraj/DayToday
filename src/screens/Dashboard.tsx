@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, Image, Platform } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, Image, Platform, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { DateData } from 'react-native-calendars';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
-import * as IntentLauncher from 'expo-intent-launcher';
 import { useStore } from '../store';
+import { v4 as uuidv4 } from 'uuid';
 import { Header } from '../components/Header';
 import { ModernCalendar } from '../components/ModernCalendar';
 import { TaskCard } from '../components/TaskCard';
@@ -18,6 +18,7 @@ import { AnimatedBackground } from '../components/AnimatedBackground';
 import { GlassCard } from '../components/GlassCard';
 import { colors, spacing, typography, shadows } from '../theme';
 import { AddRoutineModal } from '../components/AddRoutineModal';
+import { scheduleTaskNotification } from '../services/notifications';
 
 export const DashboardScreen = () => {
     const { tasks, tasksByDate, routines, toggleTaskCompleted, createTaskForDay, generateTasksForDateFromRoutines, deleteTask } = useStore();
@@ -25,6 +26,7 @@ export const DashboardScreen = () => {
     const [isRoutineModalVisible, setRoutineModalVisible] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [refreshing, setRefreshing] = useState(false);
+    const scrollY = useRef(new Animated.Value(0)).current;
 
     const todaysTaskIds = tasksByDate[selectedDate] || [];
     const allTodaysItems = todaysTaskIds.map(id => tasks[id]).filter(Boolean);
@@ -147,15 +149,28 @@ export const DashboardScreen = () => {
                     }
                 />
 
-                <ScrollView
+                <Animated.ScrollView
                     contentContainerStyle={styles.content}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
                         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />
                     }
+                    onScroll={Animated.event(
+                        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                        { useNativeDriver: true }
+                    )}
+                    scrollEventThrottle={16}
                 >
                     {/* Summary Cards */}
-                    <View style={styles.summaryRow}>
+                    <Animated.View style={[styles.summaryRow, {
+                        transform: [{
+                            translateY: scrollY.interpolate({
+                                inputRange: [-100, 0, 100],
+                                outputRange: [0, 0, -10], // Slight parallax up
+                                extrapolate: 'clamp'
+                            })
+                        }]
+                    }]}>
                         {/* Tasks Summary */}
                         <TouchableOpacity 
                             style={[styles.summaryCard, { backgroundColor: colors.primary }]}
@@ -188,7 +203,7 @@ export const DashboardScreen = () => {
                                     <View style={styles.cardHeaderRow}>
                                         <View style={styles.progressRingContainer}>
                                             <View style={styles.progressRing}>
-                                                <Ionicons name="checkmark" size={28} color="white" />
+                                                <Ionicons name="checkmark" size={22} color="white" />
                                             </View>
                                         </View>
                                         <TouchableOpacity 
@@ -201,7 +216,7 @@ export const DashboardScreen = () => {
                                             <Ionicons name="add" size={20} color="white" />
                                         </TouchableOpacity>
                                     </View>
-                                    <View>
+                                    <View style={{ position: 'absolute', bottom: 20, left: 20 }}>
                                         <Text style={styles.summaryCount}>{pendingTasksCount}</Text>
                                         <Text style={styles.summaryLabel}>Pending Tasks</Text>
                                     </View>
@@ -241,7 +256,7 @@ export const DashboardScreen = () => {
                                     <View style={styles.cardHeaderRow}>
                                         <View style={styles.progressRingContainer}>
                                             <View style={styles.progressRing}>
-                                                <Ionicons name="repeat" size={28} color="white" />
+                                                <Ionicons name="repeat" size={22} color="white" />
                                             </View>
                                         </View>
                                         <TouchableOpacity 
@@ -254,14 +269,14 @@ export const DashboardScreen = () => {
                                             <Ionicons name="add" size={20} color="white" />
                                         </TouchableOpacity>
                                     </View>
-                                    <View>
+                                    <View style={{ position: 'absolute', bottom: 20, left: 20 }}>
                                         <Text style={styles.summaryCount}>{incompleteRoutinesCount}</Text>
                                         <Text style={styles.summaryLabel}>Upcoming Routines</Text>
                                     </View>
                                 </View>
                             )}
                         </TouchableOpacity>
-                    </View>
+                    </Animated.View>
 
                     {/* Routines Stack Section */}
                     {(() => {
@@ -294,54 +309,91 @@ export const DashboardScreen = () => {
                         }
 
                         return (
-                            <View style={{ marginBottom: spacing.l }}>
+                            <Animated.View style={{ marginBottom: spacing.l, transform: [{
+                                translateY: scrollY.interpolate({
+                                    inputRange: [-100, 0, 200],
+                                    outputRange: [0, 0, -20], // More pronounced parallax
+                                    extrapolate: 'clamp'
+                                })
+                            }] }}>
                                 <View style={styles.sectionHeader}>
                                     <Text style={styles.sectionTitle}>Up Next</Text>
                                 </View>
-                                <RoutineStack routines={routinesToShow} />
-                            </View>
+                                <RoutineStack 
+                                    routines={routinesToShow} 
+                                    onCalendarPress={(task) => {
+                                        if (task.routineId && routines[task.routineId]) {
+                                            const routineDef = routines[task.routineId];
+                                            navigation.navigate('Routines', { 
+                                                openCalendarId: task.routineId,
+                                                filter: routineDef.recurrence.type 
+                                            });
+                                        }
+                                    }}
+                                />
+                            </Animated.View>
                         );
                     })()}
 
                     {/* Calendar */}
-                    <View style={styles.calendarContainer}>
+                    <Animated.View style={[styles.calendarContainer, {
+                        transform: [{
+                            translateY: scrollY.interpolate({
+                                inputRange: [-100, 0, 300],
+                                outputRange: [0, 0, -30], // Even more parallax
+                                extrapolate: 'clamp'
+                            })
+                        }]
+                    }]}>
                         <ModernCalendar
                             selectedDate={selectedDate}
                             onDateSelect={setSelectedDate}
                             markedDates={markedDates}
                         />
-                    </View>
+                    </Animated.View>
 
                     {/* Tasks Section */}
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Today's Schedule</Text>
-                        <TouchableOpacity onPress={() => setModalVisible(true)}>
-                            <Ionicons name="add-circle" size={28} color={colors.primary} />
-                        </TouchableOpacity>
-                    </View>
-
-                    {todaysTasks.length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <Text style={styles.emptyText}>No pending tasks. Enjoy your rest!</Text>
+                    <Animated.View style={{
+                        transform: [{
+                            translateY: scrollY.interpolate({
+                                inputRange: [-100, 0, 400],
+                                outputRange: [0, 0, -40], // Max parallax
+                                extrapolate: 'clamp'
+                            })
+                        }]
+                    }}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Today's Schedule</Text>
+                            <TouchableOpacity onPress={() => setModalVisible(true)}>
+                                <Ionicons name="add-circle" size={28} color={colors.primary} />
+                            </TouchableOpacity>
                         </View>
-                    ) : (
-                        todaysTasks.map(task => (
-                            <TaskCard
-                                key={task.id}
-                                task={task}
-                                onToggle={toggleTaskCompleted}
-                                onDelete={deleteTask}
-                            />
-                        ))
-                    )}
-                </ScrollView>
+
+                        {todaysTasks.length === 0 ? (
+                            <View style={styles.emptyState}>
+                                <Text style={styles.emptyText}>No pending tasks. Enjoy your rest!</Text>
+                            </View>
+                        ) : (
+                            todaysTasks.map(task => (
+                                <TaskCard
+                                    key={task.id}
+                                    task={task}
+                                    onToggle={toggleTaskCompleted}
+                                    onDelete={deleteTask}
+                                />
+                            ))
+                        )}
+                    </Animated.View>
+                </Animated.ScrollView>
 
             <AddTaskModal
                 visible={isModalVisible}
                 onClose={() => setModalVisible(false)}
                 initialDate={selectedDate}
                 onAdd={async (taskData) => {
+                    const taskId = uuidv4();
                     createTaskForDay({ 
+                        id: taskId,
                         title: taskData.title, 
                         date: taskData.date,
                         reminderTime: taskData.time,
@@ -349,39 +401,13 @@ export const DashboardScreen = () => {
                     });
 
                     if (taskData.time) {
-                        const triggerDate = new Date(taskData.date);
-                        triggerDate.setHours(taskData.time.hour);
-                        triggerDate.setMinutes(taskData.time.minute);
-                        triggerDate.setSeconds(0);
-
-                        if (triggerDate > new Date()) {
-                            if (Platform.OS === 'android' && taskData.notificationType === 'alarm') {
-                                await IntentLauncher.startActivityAsync('android.intent.action.SET_ALARM', {
-                                    extra: {
-                                        'android.intent.extra.alarm.HOUR': taskData.time.hour,
-                                        'android.intent.extra.alarm.MINUTES': taskData.time.minute,
-                                        'android.intent.extra.alarm.MESSAGE': taskData.title,
-                                        'android.intent.extra.alarm.SKIP_UI': true,
-                                    },
-                                });
-                            } else {
-                                const channelId = taskData.notificationType === 'alarm' ? 'alarms' : 'reminders';
-                                const priority = taskData.notificationType === 'alarm' 
-                                    ? Notifications.AndroidNotificationPriority.MAX 
-                                    : Notifications.AndroidNotificationPriority.HIGH;
-
-                                await Notifications.scheduleNotificationAsync({
-                                    content: {
-                                        title: "Task Reminder",
-                                        body: taskData.title,
-                                        sound: true,
-                                        priority,
-                                        channelId,
-                                    } as any,
-                                    trigger: triggerDate as any,
-                                });
-                            }
-                        }
+                        await scheduleTaskNotification(
+                            taskId,
+                            taskData.title,
+                            taskData.date,
+                            taskData.time,
+                            taskData.notificationType
+                        );
                     }
                 }}
             />
@@ -423,7 +449,7 @@ const styles = StyleSheet.create({
     cardContent: {
         flex: 1,
         padding: 20,
-        justifyContent: 'space-between',
+        paddingBottom: 20,
     },
     cardHeaderRow: {
         flexDirection: 'row',
@@ -440,15 +466,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     progressRingContainer: {
-        width: 60,
-        height: 60,
+        width: 44,
+        height: 44,
         marginBottom: spacing.m,
     },
     progressRing: {
         width: '100%',
         height: '100%',
-        borderRadius: 30,
-        borderWidth: 4,
+        borderRadius: 22,
+        borderWidth: 3,
         borderColor: 'rgba(255, 255, 255, 0.3)',
         justifyContent: 'center',
         alignItems: 'center',
@@ -459,7 +485,7 @@ const styles = StyleSheet.create({
         color: 'white',
     },
     summaryLabel: {
-        fontSize: 15,
+        fontSize: 13,
         fontWeight: '600',
         color: 'rgba(255, 255, 255, 0.9)',
         marginBottom: 4,

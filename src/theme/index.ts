@@ -3,6 +3,10 @@ export const colors = {
   backgroundGradientStart: '#667eea',
   backgroundGradientEnd: '#764ba2',
   
+  // App Background
+  appBackgroundStart: '#E9E9E9',
+  appBackgroundEnd: '#F5F5F5', // Subtle shift for "subtle gradient"
+  
   // Glass surfaces - more transparent for stronger effect
   glass: 'rgba(255, 255, 255, 0.15)',
   glassStrong: 'rgba(255, 255, 255, 0.3)',

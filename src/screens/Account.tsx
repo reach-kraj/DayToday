@@ -5,6 +5,7 @@ import { useStore } from '../store';
 import { Header } from '../components/Header';
 import { colors, spacing, typography, shadows } from '../theme';
 import * as Notifications from 'expo-notifications';
+import { scheduleRecurringEndOfDayNotification } from '../services/notifications';
 import { AnimatedBackground } from '../components/AnimatedBackground';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,25 +33,7 @@ export const AccountScreen = () => {
     }, []);
 
     const scheduleEndOfDayNotification = async (hour: number, minute: number) => {
-        await Notifications.cancelAllScheduledNotificationsAsync();
-        
-        await Notifications.scheduleNotificationAsync({
-            content: {
-                title: "End of Day Review",
-                body: "You have pending tasks! Tap to review.",
-                categoryIdentifier: 'END_OF_DAY_CATEGORY',
-                sound: true,
-                priority: Notifications.AndroidNotificationPriority.HIGH,
-                data: { type: 'END_OF_DAY' },
-                channelId: 'end_of_day',
-            } as any,
-            trigger: {
-                type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-                hour: hour,
-                minute: minute,
-                repeats: true,
-            },
-        });
+        await scheduleRecurringEndOfDayNotification(hour, minute);
     };
 
     const handleTimeChange = (event: any, selectedDate?: Date) => {
@@ -145,6 +128,55 @@ export const AccountScreen = () => {
                         )}
                     </View>
 
+                    <View style={styles.section}>
+                        <Text style={styles.sectionHeader}>Debug</Text>
+                        {renderCard(
+                            "Test Task Notification",
+                            "Triggers a notification in 2 seconds",
+                            <Ionicons name="notifications-outline" size={24} color="white" />,
+                            async () => {
+                                const trigger = new Date(Date.now() + 2000);
+                                const taskId = 'debug-task-id';
+                                const taskTitle = 'Debug Task';
+                                const taskTime = '10:00 AM';
+                                
+                                await Notifications.scheduleNotificationAsync({
+                                    content: {
+                                        title: "Task Reminder",
+                                        body: taskTitle,
+                                        data: {
+                                            taskId,
+                                            taskTitle,
+                                            taskTime,
+                                        },
+                                        sound: true,
+                                        priority: Notifications.AndroidNotificationPriority.HIGH,
+                                    },
+                                    trigger: trigger as unknown as Notifications.NotificationTriggerInput,
+                                });
+                                Alert.alert('Scheduled', 'Notification will appear in 2 seconds. Please background the app if needed.');
+                            }
+                        )}
+                        {renderCard(
+                            "Test End of Day",
+                            "Triggers End of Day summary",
+                            <Ionicons name="moon-outline" size={24} color="white" />,
+                            async () => {
+                                await Notifications.scheduleNotificationAsync({
+                                    content: {
+                                        title: "End of Day Review",
+                                        body: "You have pending tasks! Tap to review.",
+                                        data: { type: 'END_OF_DAY' },
+                                        sound: true,
+                                        priority: Notifications.AndroidNotificationPriority.HIGH,
+                                    },
+                                    trigger: null,
+                                });
+                                Alert.alert('Scheduled', 'End of Day notification sent.');
+                            }
+                        )}
+                    </View>
+
                     <View style={styles.footer}>
                         <Text style={styles.version}>DayToday v1.0.0</Text>
                     </View>
@@ -159,6 +191,7 @@ export const AccountScreen = () => {
                         is24Hour={false}
                         display="default"
                         onChange={handleTimeChange}
+                        locale="en-US"
                     />
                 )}
 
@@ -185,6 +218,7 @@ export const AccountScreen = () => {
                                     display="spinner"
                                     onChange={handleTimeChange}
                                     textColor="black"
+                                    locale="en-US"
                                 />
                             </View>
                         </View>
@@ -202,6 +236,7 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: spacing.l,
+        paddingBottom: 100,
     },
     section: {
         marginBottom: spacing.xl,

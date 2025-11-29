@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView as RNSafeAreaView, Platform, Image } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView as RNSafeAreaView, Platform, Image, LayoutAnimation, UIManager } from 'react-native';
 import { AnimatedBackground } from '../components/AnimatedBackground';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../store';
@@ -9,6 +9,7 @@ import { AddTaskModal } from '../components/AddTaskModal';
 import { colors, spacing, typography, shadows } from '../theme';
 import { addDays, subDays, format } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
+import { v4 as uuidv4 } from 'uuid';
 import * as Notifications from 'expo-notifications';
 import * as IntentLauncher from 'expo-intent-launcher';
 
@@ -71,6 +72,8 @@ export const TaskScreen = () => {
     };
 
     const handleSaveTask = async (taskData: { title: string; date: string; time?: { hour: number; minute: number }; notificationType?: 'notification' | 'alarm' }) => {
+        let taskId = editingTask ? editingTask.id : uuidv4();
+
         if (editingTask) {
             updateTask(editingTask.id, { 
                 title: taskData.title,
@@ -81,6 +84,7 @@ export const TaskScreen = () => {
             setEditingTask(null);
         } else {
             createTaskForDay({ 
+                id: taskId,
                 title: taskData.title, 
                 date: taskData.date,
                 reminderTime: taskData.time,
@@ -106,10 +110,17 @@ export const TaskScreen = () => {
                         },
                     });
                 } else {
+                    const formattedTime = new Date(triggerDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    
                     await Notifications.scheduleNotificationAsync({
                         content: {
                             title: "Task Reminder",
                             body: taskData.title,
+                            data: {
+                                taskId,
+                                taskTitle: taskData.title,
+                                taskTime: formattedTime,
+                            },
                             sound: true,
                             priority: Notifications.AndroidNotificationPriority.HIGH,
                         },
@@ -130,6 +141,16 @@ export const TaskScreen = () => {
     const renderTaskList = () => {
         const pendingTasks = currentTasks.filter(t => !t.completed);
         const completedTasks = currentTasks.filter(t => t.completed);
+
+        // Enable LayoutAnimation for Android
+        if (Platform.OS === 'android') {
+            if (UIManager.setLayoutAnimationEnabledExperimental) {
+                UIManager.setLayoutAnimationEnabledExperimental(true);
+            }
+        }
+
+        // Trigger animation on every render
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
         if (currentTasks.length === 0) {
             return (
@@ -348,6 +369,7 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: spacing.l,
+        paddingBottom: 100,
     },
     dateHeader: {
         flexDirection: 'row',

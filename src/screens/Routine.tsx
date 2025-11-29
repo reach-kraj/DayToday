@@ -3,20 +3,30 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Image } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AnimatedBackground } from '../components/AnimatedBackground';
 import { Ionicons } from '@expo/vector-icons';
-import { Swipeable } from 'react-native-gesture-handler';
+import { SwipeableRoutineRow } from '../components/SwipeableRoutineRow';
 import { useStore, Routine } from '../store';
 import { Header } from '../components/Header';
 import { colors, spacing, typography, shadows } from '../theme';
 import { AddRoutineModal } from '../components/AddRoutineModal';
+import { RoutineTimelineCard } from '../components/RoutineTimelineCard';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { useRoute, RouteProp } from '@react-navigation/native';
+
+type RoutineScreenRouteProp = RouteProp<{
+    Routines: { openCalendarId?: string; filter?: string };
+}, 'Routines'>;
+
 export const RoutineScreen = () => {
-    const { routines, deleteRoutine } = useStore();
+    const route = useRoute<RoutineScreenRouteProp>();
+    const { routines, tasks, tasksByDate, deleteRoutine, generateTasksForDateFromRoutines } = useStore();
     const [isModalVisible, setModalVisible] = useState(false);
     const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
+    const [filter, setFilter] = useState<'today' | 'all'>('today');
+    const [openRoutineId, setOpenRoutineId] = useState<string | null>(null);
 
-    const handleEdit = (routine: Routine) => {
-        setEditingRoutineId(routine.id);
+    const handleEdit = (routineId: string) => {
+        setEditingRoutineId(routineId);
         setModalVisible(true);
     };
 
@@ -25,38 +35,71 @@ export const RoutineScreen = () => {
         setEditingRoutineId(null);
     };
 
-    const routineList = Object.values(routines);
+    React.useEffect(() => {
+        if (route.params?.filter) {
+            // Map specific recurrence types to 'all' if not 'today'
+            const incomingFilter = route.params.filter;
+            setFilter(incomingFilter === 'today' ? 'today' : 'all');
+        }
+        if (route.params?.openCalendarId) {
+            setOpenRoutineId(route.params.openCalendarId);
+        }
+    }, [route.params]);
 
-    const formatTime = (hour: number, minute: number) => {
-        const period = hour >= 12 ? 'PM' : 'AM';
-        const hour12 = hour % 12 || 12;
-        const minuteStr = minute.toString().padStart(2, '0');
-        return `${hour12}:${minuteStr} ${period}`;
+    React.useEffect(() => {
+        if (filter === 'today') {
+            const today = new Date().toISOString().split('T')[0];
+            generateTasksForDateFromRoutines(today);
+        }
+    }, [filter, generateTasksForDateFromRoutines]);
+
+    const getFilteredRoutines = () => {
+        if (filter === 'today') {
+            const today = new Date().toISOString().split('T')[0];
+            const todaysTaskIds = tasksByDate[today] || [];
+            return todaysTaskIds
+                .map(id => tasks[id])
+                .filter(t => t && t.routineId)
+                .map(t => routines[t.routineId!]) // Map to Routine object
+                .filter(Boolean);
+        }
+        
+        return Object.values(routines);
     };
 
-    const renderRightActions = (progress: any, dragX: any, id: string) => {
-        return (
-            <View style={styles.deleteAction}>
-                <Ionicons name="trash-outline" size={20} color="white" />
-            </View>
-        );
-    };
+    const filteredRoutines = getFilteredRoutines().sort((a, b) => {
+         if (!a.time || !b.time) return 0;
+         return (a.time.hour * 60 + a.time.minute) - (b.time.hour * 60 + b.time.minute);
+    });
 
-    const handleLongPress = (routine: Routine) => {
+
+
+    const handleLongPress = (routineId: string) => {
         Alert.alert(
             'Routine Options',
             'Choose an action',
             [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Edit', onPress: () => handleEdit(routine) },
+                { text: 'Edit', onPress: () => handleEdit(routineId) },
                 {
                     text: 'Delete',
                     style: 'destructive',
-                    onPress: () => deleteRoutine(routine.id)
+                    onPress: () => deleteRoutine(routineId)
                 },
             ]
         );
     };
+
+    const FilterTab = ({ type, label }: { type: typeof filter, label: string }) => (
+        <TouchableOpacity 
+            style={[styles.filterTab, filter === type && styles.filterTabSelected]}
+            onPress={() => setFilter(type)}
+        >
+            <Text style={[styles.filterText, filter === type && styles.filterTextSelected]}>
+                {label}
+            </Text>
+        </TouchableOpacity>
+    );
 
     return (
         <AnimatedBackground>
@@ -70,55 +113,36 @@ export const RoutineScreen = () => {
                     }
                 />
 
+                <View style={styles.filterContainer}>
+                    <FilterTab type="today" label="Today" />
+                    <FilterTab type="all" label="All Routines" />
+                </View>
+
                 <ScrollView contentContainerStyle={styles.content}>
-                    {routineList.length === 0 ? (
+                    {filteredRoutines.length === 0 ? (
                         <View style={styles.emptyState}>
-                            <Text style={styles.emptyText}>No routines yet. Create one to automate your habits.</Text>
+                            <Text style={styles.emptyText}>No {filter} routines found.</Text>
                             <Image 
                                 source={require('../../assets/routine_empty_state.png')} 
                                 style={styles.emptyImage}
                             />
                         </View>
                     ) : (
-                        routineList.map(routine => (
+                        filteredRoutines.map(routine => (
                             <View key={routine.id} style={styles.cardContainer}>
-                                <Swipeable
-                                    renderRightActions={(progress, dragX) => renderRightActions(progress, dragX, routine.id)}
-                                    onSwipeableRightOpen={() => deleteRoutine(routine.id)}
-                                >
+                                <SwipeableRoutineRow onDelete={() => deleteRoutine(routine.id)}>
                                     <TouchableOpacity
                                         activeOpacity={0.9}
-                                        onLongPress={() => handleLongPress(routine)}
-                                        style={styles.card}
+                                        onLongPress={() => handleLongPress(routine.id)}
                                     >
-                                        <LinearGradient
-                                            colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.02)']}
-                                            start={{ x: 0, y: 0 }}
-                                            end={{ x: 1, y: 1 }}
-                                            style={styles.cardGradient}
-                                        >
-                                            <View style={styles.cardContent}>
-                                                <Text style={styles.cardTitle}>{routine.title}</Text>
-                                                <Text style={styles.cardSubtitle}>
-                                                    {routine.recurrence.type.charAt(0).toUpperCase() + routine.recurrence.type.slice(1)}
-                                                </Text>
-                                            </View>
-                                            <View style={styles.timeContainer}>
-                                                <Text style={styles.timeText}>
-                                                    {formatTime(routine.time.hour, routine.time.minute)}
-                                                </Text>
-                                                {routine.notificationType && (
-                                                    <Ionicons 
-                                                        name={routine.notificationType === 'alarm' ? 'alarm-outline' : 'notifications-outline'} 
-                                                        size={20} 
-                                                        color="rgba(255,255,255,0.9)" 
-                                                        style={{ marginLeft: 8 }}
-                                                    />
-                                                )}
-                                            </View>
-                                        </LinearGradient>
+                                        <RoutineTimelineCard 
+                                            item={routine} 
+                                            style={{ marginBottom: 0 }} 
+                                            isCalendarOpen={openRoutineId === routine.id}
+                                            onCalendarPress={() => setOpenRoutineId(prev => prev === routine.id ? null : routine.id)}
+                                        />
                                     </TouchableOpacity>
-                                </Swipeable>
+                                </SwipeableRoutineRow>
                             </View>
                         ))
                     )}
@@ -141,6 +165,36 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: spacing.l,
+        paddingBottom: 100,
+    },
+    filterContainer: {
+        flexDirection: 'row',
+        paddingHorizontal: spacing.m,
+        marginBottom: spacing.m,
+        gap: 8,
+        justifyContent: 'flex-start',
+    },
+    filterTab: {
+        paddingVertical: 6,
+        paddingHorizontal: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 20,
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+    },
+    filterTabSelected: {
+        backgroundColor: colors.primary,
+        borderColor: 'rgba(255,255,255,0.3)',
+    },
+    filterText: {
+        fontSize: 12, // Slightly smaller font to fit
+        color: 'rgba(255, 255, 255, 0.9)',
+        fontWeight: '600',
+    },
+    filterTextSelected: {
+        color: 'white',
     },
     addButton: {
         backgroundColor: colors.primary,
@@ -156,7 +210,11 @@ const styles = StyleSheet.create({
     },
     cardContainer: {
         marginBottom: spacing.m,
-        ...shadows.medium,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08, // Very soft opacity
+        shadowRadius: 24, // Large radius for diffusion
+        elevation: 3, // Lower elevation
     },
     card: {
         backgroundColor: colors.primary,
@@ -214,13 +272,5 @@ const styles = StyleSheet.create({
         resizeMode: 'contain',
         marginTop: spacing.l,
     },
-    deleteAction: {
-        backgroundColor: colors.danger,
-        justifyContent: 'center',
-        alignItems: 'center',
-        width: 60,
-        height: '100%',
-        borderRadius: 16,
-        marginLeft: spacing.s,
-    },
+
 });

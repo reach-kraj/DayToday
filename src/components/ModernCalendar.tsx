@@ -56,12 +56,9 @@ export const ModernCalendar: React.FC<ModernCalendarProps> = ({ selectedDate, on
     const handleDayPress = (day: number) => {
         const year = currentMonth.getFullYear();
         const month = currentMonth.getMonth();
-        // Create date using local time to avoid timezone issues with ISO string
+        // Create date using local time
         const date = new Date(year, month, day);
-        // Adjust for timezone offset to get correct YYYY-MM-DD
-        const offset = date.getTimezoneOffset() * 60000;
-        const localDate = new Date(date.getTime() - offset);
-        const dateString = localDate.toISOString().split('T')[0];
+        const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         onDateSelect(dateString);
     };
 
@@ -78,9 +75,7 @@ export const ModernCalendar: React.FC<ModernCalendarProps> = ({ selectedDate, on
         const year = currentMonth.getFullYear();
         const month = currentMonth.getMonth();
         const date = new Date(year, month, day);
-        const offset = date.getTimezoneOffset() * 60000;
-        const localDate = new Date(date.getTime() - offset);
-        const dateString = localDate.toISOString().split('T')[0];
+        const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         return dateString === selectedDate;
     };
 
@@ -88,33 +83,16 @@ export const ModernCalendar: React.FC<ModernCalendarProps> = ({ selectedDate, on
         const year = currentMonth.getFullYear();
         const month = currentMonth.getMonth();
         const date = new Date(year, month, day);
-        const offset = date.getTimezoneOffset() * 60000;
-        const localDate = new Date(date.getTime() - offset);
-        const dateString = localDate.toISOString().split('T')[0];
+        const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         return markedDates[dateString]?.marked;
     };
 
     const days = getDaysInMonth(currentMonth);
 
-    const panResponder = React.useRef(
-        PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder: (_, gestureState) => {
-                // Only capture horizontal swipes
-                return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
-            },
-            onPanResponderRelease: (_, gestureState) => {
-                if (gestureState.dx > 50) {
-                    handlePrevMonth();
-                } else if (gestureState.dx < -50) {
-                    handleNextMonth();
-                }
-            },
-        })
-    ).current;
+
 
     return (
-        <View style={styles.container} {...panResponder.panHandlers}>
+        <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={handlePrevMonth} style={styles.navButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>

@@ -31,15 +31,12 @@ export const BottomTabs = () => {
                 },
                 tabBarBackground: () => (
                     <View style={styles.tabBarBackground}>
-                        {Platform.OS === 'ios' ? (
-                            <BlurView 
-                                intensity={100} 
-                                tint="light"
-                                style={StyleSheet.absoluteFill} 
-                            />
-                        ) : (
-                            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.glassStrong }]} />
-                        )}
+                        <BlurView 
+                            intensity={80} 
+                            tint="light"
+                            experimentalBlurMethod='dimezisBlurView'
+                            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.7)' }]} 
+                        />
                         <View style={styles.topBorder} />
                     </View>
                 ),

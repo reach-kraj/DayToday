@@ -8,11 +8,16 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3;
 
 interface RoutineStackProps {
     routines: DayTask[];
+    onCalendarPress?: (routine: DayTask) => void;
 }
 
-export const RoutineStack: React.FC<RoutineStackProps> = ({ routines }) => {
+export const RoutineStack: React.FC<RoutineStackProps> = ({ routines, onCalendarPress }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const position = useRef(new Animated.ValueXY()).current;
+
+    React.useEffect(() => {
+        position.setValue({ x: 0, y: 0 });
+    }, [currentIndex]);
 
     const panResponder = useRef(
         PanResponder.create({
@@ -42,7 +47,6 @@ export const RoutineStack: React.FC<RoutineStackProps> = ({ routines }) => {
     };
 
     const onSwipeComplete = () => {
-        position.setValue({ x: 0, y: 0 });
         setCurrentIndex(prev => (prev + 1) % routines.length);
     };
 
@@ -98,7 +102,10 @@ export const RoutineStack: React.FC<RoutineStackProps> = ({ routines }) => {
                     opacity: opacity3,
                     zIndex: 1
                 }]}>
-                    <RoutineTimelineCard routine={routine3} />
+                    <RoutineTimelineCard 
+                        item={routine3} 
+                        onCalendarPress={onCalendarPress ? () => onCalendarPress(routine3) : undefined}
+                    />
                 </Animated.View>
             );
         }
@@ -130,7 +137,10 @@ export const RoutineStack: React.FC<RoutineStackProps> = ({ routines }) => {
                     opacity: opacity2,
                     zIndex: 2
                 }]}>
-                    <RoutineTimelineCard routine={routine2} />
+                    <RoutineTimelineCard 
+                        item={routine2} 
+                        onCalendarPress={onCalendarPress ? () => onCalendarPress(routine2) : undefined}
+                    />
                 </Animated.View>
             );
         }
@@ -166,7 +176,10 @@ export const RoutineStack: React.FC<RoutineStackProps> = ({ routines }) => {
                 ]}
                 {...panResponder.panHandlers}
             >
-                <RoutineTimelineCard routine={routine1} />
+                <RoutineTimelineCard 
+                    item={routine1} 
+                    onCalendarPress={onCalendarPress ? () => onCalendarPress(routine1) : undefined}
+                />
             </Animated.View>
         );
 

@@ -152,6 +152,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                                             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                                             is24Hour={false}
                                             onChange={onTimeChange}
+                                            locale="en-US"
                                         />
                                     )}
 
